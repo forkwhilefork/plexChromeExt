@@ -4,6 +4,7 @@ var metadataId = "";
 // Called when the user clicks on the browser action.
 chrome.browserAction.onClicked.addListener(function(tab) {
     // Send a message to the active tab
+    // "tell me what the plex token, clientId, and metadataId are"
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       var activeTab = tabs[0];
       chrome.tabs.sendMessage(activeTab.id, {"message": "clicked_browser_action"});
@@ -31,7 +32,7 @@ var downloadUrl = "{baseuri}{partkey}?download=1&X-Plex-Token={token}";
 var accessTokenXpath = "//Device[@clientIdentifier='{clientid}']/@accessToken";
 var baseUriXpath = "//Device[@clientIdentifier='{clientid}']/Connection[@local=0][@protocol='https']/@uri";
 var directoryTypeXpath = "//Directory/@type";
-var partKeyXpath = "//Media/Part[1]/@key";
+var mediaPartKeyXpath = "//Media/Part[1]/@key";
 var baseUri = null;
 var accessToken = null;
 
@@ -82,32 +83,38 @@ var getMetadata = function(xml) {
 };
 
 var getDownloadUrl = function(xml) {
-    var partKeyNode = xml.evaluate(partKeyXpath, xml, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-
-    if (partKeyNode.singleNodeValue) {
-        console.log("this is a single media item.");
-        displayTextInNewTab(downloadUrl.replace('{baseuri}', baseUri).replace('{partkey}', partKeyNode.singleNodeValue.textContent).replace('{token}', accessToken));
-        // TODO: here we should be iterating through a list instead of picking the first element
-        // we may be able to reuse the "processSeasonChildren" function (and rename it to something more generic)
-    } else {
-        console.log("we're not on the page for a single media item. checking if it's a season or show.");
-        
-        directoryType = xml.evaluate(directoryTypeXpath, xml, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null)
-        
+    // first we check what type of page we're looking at
+    directoryType = xml.evaluate(directoryTypeXpath, xml, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null)
+    
+    if(directoryType.singleNodeValue) {
         if (directoryType.singleNodeValue.textContent == "season") {
-            console.log("we're on the page for a season.")
-            getXml(apiLibraryUrl.replace('{baseuri}', baseUri).replace('{id}', metadataId + "/children").replace('{token}', accessToken), processSeasonChildrenCallback);
+            console.log("this is a season.")
+            // we can grab all the episodes at once if we append /children to the current URL
+            getXml(apiLibraryUrl.replace('{baseuri}', baseUri).replace('{id}', metadataId + "/children").replace('{token}', accessToken), extractAllMediaUrlsCallback);
         } else if (directoryType.singleNodeValue.textContent == "show") {
-            console.log("we're on the page for a show.")
-            getXml(apiLibraryUrl.replace('{baseuri}', baseUri).replace('{id}', metadataId + "/allLeaves").replace('{token}', accessToken), processSeasonChildrenCallback);
+            console.log("this is a show.")
+            // we can grab all the episodes at once if we append /allLeaves to the current URL
+            getXml(apiLibraryUrl.replace('{baseuri}', baseUri).replace('{id}', metadataId + "/allLeaves").replace('{token}', accessToken), extractAllMediaUrlsCallback);
         } else {
             console.log("I don't know how to handle this page.");
+        }
+    } else {
+        // if there's no Directory element, it's not a season or show.
+        // probably an individual media item (tv episode or movie).
+        var mediaPartKeyNode = xml.evaluate(mediaPartKeyXpath, xml, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+
+        // but we still make sure before trying to get the URLs
+        if (mediaPartKeyNode.singleNodeValue) {
+            console.log("this is a single media item.");
+            extractAllMediaUrlsCallback(xml);
+        } else {
+            console.log("I don't know how to handle this page.")
         }
     }
 };
 
-var processSeasonChildren = function(xml) {
-    var partKeyNodeSet = xml.evaluate(partKeyXpath, xml, null, XPathResult.ORDERED_NODE_ITERATOR_TYPE, null);
+var extractAllMediaUrls = function(xml) {
+    var partKeyNodeSet = xml.evaluate(mediaPartKeyXpath, xml, null, XPathResult.ORDERED_NODE_ITERATOR_TYPE, null);
     var thisNode = partKeyNodeSet.iterateNext();
     var urls = "";
     
@@ -119,12 +126,11 @@ var processSeasonChildren = function(xml) {
     return urls;
 };
 
-var processSeasonChildrenCallback = function(xml) {
-    displayTextInNewTab(processSeasonChildren(xml));
+var extractAllMediaUrlsCallback = function(xml) {
+    displayTextInNewTab(extractAllMediaUrls(xml));
 };
 
 function displayTextInNewTab(text){
     var win = window.open();
     win.document.write('<iframe src="data:text/plain;charset=utf-8,' + encodeURIComponent(text)  + '" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>');
-    //chrome.tabs.create({"url": request.url});
 }
