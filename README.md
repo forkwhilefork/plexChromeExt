@@ -7,11 +7,7 @@ For now, you have to install it manually. Browse to `chrome://extensions/` and c
 
 # Operation
 1. Open the Plex web UI
-2. Find what you want to download. The following types of media are supported:
-	a. TV shows
-	b. TV seasons
-	c. TV episodes
-	d. Movies
+2. Find what you want to download. The following types of media are supported: (1) TV shows, (2) TV seasons, (3) TV episodes, and (4) Movies
 3. Click the extension icon to the right of the address bar
 4. A new tab will open with one or more links
 5. Download these links any way you want. What I usually do is
