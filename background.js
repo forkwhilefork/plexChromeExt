@@ -2,7 +2,7 @@ var clientId = "";
 var metadataId = "";
 
 // Called when the user clicks on the browser action.
-chrome.browserAction.onClicked.addListener(function(tab) {
+chrome.action.onClicked.addListener(function(tab) {
     // Send a message to the active tab
     // "tell me what the plex token, clientId, and metadataId are"
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
