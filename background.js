@@ -36,15 +36,11 @@ var mediaPartKeyXpath = "//Media/Part[1]/@key";
 var baseUri = null;
 var accessToken = null;
 
-var getXml = function(url, callback) {
-    var request = new XMLHttpRequest();
-    request.onreadystatechange = function() {
-        if (request.readyState == 4 && request.status == 200) {
-            callback(request.responseXML);
-        }
-    };
-    request.open("GET", url);
-    request.send();
+var getXml = function (url, callback) {
+    fetch(url)
+        .then(response => response.text())
+        .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
+        .then(xml => callback(xml));
 };
 
 var getMetadata = function(xml) {
